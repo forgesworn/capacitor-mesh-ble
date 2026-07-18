@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="hydrated">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mesh BLE Example</title>
+    <meta
+      name="viewport"
+      content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="format-detection" content="telephone=no" />
+  </head>
+  <body>
+    <main>
+      <h1>Mesh BLE native smoke</h1>
+      <p>Start two physical devices with the same room and service UUID, then broadcast between them.</p>
+      <label>Room <input id="room" value="example-room" /></label>
+      <label>Peer id <input id="peer" /></label>
+      <label>Service UUID <input id="service" value="8a194910-11e8-4d31-9bda-3f674f2c78c1" /></label>
+      <label>Frame <input id="frame" value="hello nearby" /></label>
+      <p>
+        <button id="start">Start</button>
+        <button id="send">Broadcast</button>
+        <button id="stop">Stop</button>
+      </p>
+      <pre id="status">Not started</pre>
+    </main>
+
+    <script src="./js/example.js" type="module"></script>
+  </body>
+</html>

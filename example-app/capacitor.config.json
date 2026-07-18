@@ -1,0 +1,6 @@
+{
+  "appId": "dev.forgesworn.meshble.example",
+  "appName": "Mesh BLE Example",
+  "webDir": "dist",
+  "plugins": {}
+}
