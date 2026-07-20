@@ -92,6 +92,7 @@ public class MeshBlePlugin extends Plugin {
     static final String BLE_LEGACY_PERMISSION_ALIAS = "bleLegacy";
 
     private static final String EVENT_FRAME = "frame";
+    private static final String EVENT_PEER = "peer";
     private static final String EVENT_STATUS = "status";
     private static final String BROADCAST = "*";
     // Frame characteristic: client → server (WRITE). Inbox characteristic: server →
@@ -564,7 +565,7 @@ public class MeshBlePlugin extends Plugin {
         inboxCharacteristic = null;
 
         inbound.clear();
-        peerAddresses.clear();
+        forgetAllPeers();
         lastAttempt.clear();
         tiebreak = null;
         initialHops = 0;
@@ -907,7 +908,7 @@ public class MeshBlePlugin extends Plugin {
                 dropInboundFrame();
                 return;
             }
-            if (isBlank(target) || (!BROADCAST.equals(target) && !selfId.equals(target))) {
+            if (isBlank(target)) {
                 dropInboundFrame();
                 return;
             }
@@ -920,19 +921,30 @@ public class MeshBlePlugin extends Plugin {
                 return;
             }
 
-            peerAddresses.put(from, source);
-            rxFrames += 1;
-            Log.d(TAG, "rx frame from " + tail(source) + " (" + data.length() + "B, h=" + hops + ")");
-            JSObject event = new JSObject();
-            event.put("from", from);
-            event.put("data", data);
-            mainHandler.post(() -> notifyListeners(EVENT_FRAME, event));
+            learnPeer(from, source);
+            boolean forUs = MeshBleWire.shouldDeliver(target, selfId);
             // Crowd mesh: blindly relay an unseen frame onward with one fewer hop, to
             // every peer EXCEPT the one it came from. dedup (rememberSeen) above means
             // each frame is relayed at most once here, so this cannot loop. We relay
             // even frames we cannot decrypt — the payload is opaque; a relayer can't
             // read what it forwards. No-op when initialHops is zero.
-            if (initialHops > 0 && hops > 0) relayEnvelope(source, envelopeRoom, target, from, id, data, hops - 1);
+            if (MeshBleWire.shouldRelay(target, selfId, initialHops, hops)) relayEnvelope(
+                source,
+                envelopeRoom,
+                target,
+                from,
+                id,
+                data,
+                hops - 1
+            );
+            if (forUs) {
+                rxFrames += 1;
+                Log.d(TAG, "rx frame from " + tail(source) + " (" + data.length() + "B, h=" + hops + ")");
+                JSObject event = new JSObject();
+                event.put("from", from);
+                event.put("data", data);
+                mainHandler.post(() -> notifyListeners(EVENT_FRAME, event));
+            }
             emitStatus();
         } catch (JSONException ignored) {
             // Hostile or stale BLE payloads are dropped silently.
@@ -986,12 +998,40 @@ public class MeshBlePlugin extends Plugin {
         }
     }
 
+    private void learnPeer(String peer, String address) {
+        String previous = peerAddresses.put(peer, address);
+        if (!address.equals(previous)) emitPeer(peer, true);
+    }
+
+    private void forgetPeersAtAddress(String address) {
+        for (Map.Entry<String, String> entry : peerAddresses.entrySet()) {
+            String peer = entry.getKey();
+            if (address.equals(entry.getValue()) && peerAddresses.remove(peer, address)) {
+                emitPeer(peer, false);
+            }
+        }
+    }
+
+    private void forgetAllPeers() {
+        for (Map.Entry<String, String> entry : peerAddresses.entrySet()) {
+            String peer = entry.getKey();
+            if (peerAddresses.remove(peer, entry.getValue())) emitPeer(peer, false);
+        }
+    }
+
+    private void emitPeer(String peer, boolean connected) {
+        JSObject event = new JSObject();
+        event.put("peer", peer);
+        event.put("connected", connected);
+        mainHandler.post(() -> notifyListeners(EVENT_PEER, event));
+    }
+
     @SuppressLint("MissingPermission")
     private void closeLink(String address) {
         Link link = links.remove(address);
         if (link == null) return;
         link.close();
-        peerAddresses.values().removeAll(Collections.singleton(address));
+        forgetPeersAtAddress(address);
         emitStatus();
     }
 
@@ -1006,7 +1046,7 @@ public class MeshBlePlugin extends Plugin {
             server.writing = false;
             server.subscribed = false;
         }
-        peerAddresses.values().removeAll(Collections.singleton(address));
+        forgetPeersAtAddress(address);
         emitStatus();
     }
 

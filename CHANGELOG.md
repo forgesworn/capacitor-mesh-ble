@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-20
+
+### Added
+
+- Add the `peer` route-lifecycle event after a valid product peer id is learned or its BLE next-hop mapping is lost.
+
+### Fixed
+
+- Relay directed Android envelopes toward non-local targets instead of rejecting them before forwarding.
+- Honour the receiving product's zero-hop relay policy consistently on iOS and Android.
+
+[0.2.0]: https://github.com/forgesworn/capacitor-mesh-ble/compare/v0.1.0...v0.2.0
+
 ## [0.1.0] - 2026-07-18
 
 Initial release of `capacitor-mesh-ble` — the canonical configurable BLE

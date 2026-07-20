@@ -34,6 +34,12 @@ export interface MeshBleFrameEvent {
   data: string;
 }
 
+/** A product peer became reachable through a learned BLE next hop, or that route was lost. */
+export interface MeshBlePeerEvent {
+  peer: string;
+  connected: boolean;
+}
+
 export interface MeshBlePeerStatus {
   address?: string;
   peerIds: string[];
@@ -82,6 +88,7 @@ export interface MeshBlePlugin {
   setKeepaliveFrame(options: { data: string | null }): Promise<void>;
   getStatus(): Promise<MeshBleStatus>;
   addListener(eventName: 'frame', listenerFunc: (event: MeshBleFrameEvent) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'peer', listenerFunc: (event: MeshBlePeerEvent) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'status', listenerFunc: (status: MeshBleStatus) => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }

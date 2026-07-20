@@ -35,6 +35,7 @@ npx cap sync
 * [`setKeepaliveFrame(...)`](#setkeepaliveframe)
 * [`getStatus()`](#getstatus)
 * [`addListener('frame', ...)`](#addlistenerframe-)
+* [`addListener('peer', ...)`](#addlistenerpeer-)
 * [`addListener('status', ...)`](#addlistenerstatus-)
 * [`removeAllListeners()`](#removealllisteners)
 * [Interfaces](#interfaces)
@@ -132,6 +133,22 @@ addListener(eventName: 'frame', listenerFunc: (event: MeshBleFrameEvent) => void
 | ------------------ | ----------------------------------------------------------------------------------- |
 | **`eventName`**    | <code>'frame'</code>                                                                |
 | **`listenerFunc`** | <code>(event: <a href="#meshbleframeevent">MeshBleFrameEvent</a>) =&gt; void</code> |
+
+**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
+
+--------------------
+
+
+### addListener('peer', ...)
+
+```typescript
+addListener(eventName: 'peer', listenerFunc: (event: MeshBlePeerEvent) => void) => Promise<PluginListenerHandle>
+```
+
+| Param              | Type                                                                              |
+| ------------------ | --------------------------------------------------------------------------------- |
+| **`eventName`**    | <code>'peer'</code>                                                               |
+| **`listenerFunc`** | <code>(event: <a href="#meshblepeerevent">MeshBlePeerEvent</a>) =&gt; void</code> |
 
 **Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
 
@@ -243,5 +260,15 @@ removeAllListeners() => Promise<void>
 | ---------- | ------------------- |
 | **`from`** | <code>string</code> |
 | **`data`** | <code>string</code> |
+
+
+#### MeshBlePeerEvent
+
+A product peer became reachable through a learned BLE next hop, or that route was lost.
+
+| Prop            | Type                 |
+| --------------- | -------------------- |
+| **`peer`**      | <code>string</code>  |
+| **`connected`** | <code>boolean</code> |
 
 </docgen-api>

@@ -1,6 +1,6 @@
 {
   "name": "capacitor-mesh-ble",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Canonical configurable BLE mesh transport for Capacitor apps",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",

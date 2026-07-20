@@ -68,6 +68,14 @@ final class MeshBleWire {
         return String.valueOf(localId).compareTo(String.valueOf(remoteId)) > 0;
     }
 
+    static boolean shouldDeliver(String target, String selfId) {
+        return "*".equals(target) || String.valueOf(selfId).equals(target);
+    }
+
+    static boolean shouldRelay(String target, String selfId, int localRelayHops, int remainingHops) {
+        return localRelayHops > 0 && remainingHops > 0 && ("*".equals(target) || !String.valueOf(selfId).equals(target));
+    }
+
     record Chunk(int messageId, int index, int total, byte[] payload) {}
 
     static final class Reassembly {

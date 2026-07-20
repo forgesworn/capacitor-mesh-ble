@@ -75,4 +75,17 @@ public class MeshBleWireTest {
         assertFalse(MeshBleWire.shouldInitiate(tied, tied, "alice", "bob"));
         assertTrue(MeshBleWire.shouldInitiate(tied, tied, "bob", "alice"));
     }
+
+    @Test
+    public void directedFramesDeliverAtTargetAndRelayElsewhere() {
+        assertTrue(MeshBleWire.shouldDeliver("*", "bob"));
+        assertTrue(MeshBleWire.shouldDeliver("bob", "bob"));
+        assertFalse(MeshBleWire.shouldDeliver("carol", "bob"));
+
+        assertTrue(MeshBleWire.shouldRelay("*", "bob", 3, 2));
+        assertTrue(MeshBleWire.shouldRelay("carol", "bob", 3, 2));
+        assertFalse(MeshBleWire.shouldRelay("bob", "bob", 3, 2));
+        assertFalse(MeshBleWire.shouldRelay("carol", "bob", 0, 2));
+        assertFalse(MeshBleWire.shouldRelay("carol", "bob", 3, 0));
+    }
 }

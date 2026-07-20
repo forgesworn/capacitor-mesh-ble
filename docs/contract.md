@@ -24,7 +24,9 @@
 - `send({ peer, data })` uses a learned peer mapping when possible and otherwise floods safely.
 - `setKeepaliveFrame({ data })` sets or clears the iOS background frame. It is accepted as a no-op on Android.
 - `getStatus()` returns a stable cross-platform status shape.
-- `frame` emits `{ from, data }`; `status` emits the same shape as `getStatus()`.
+- `frame` emits `{ from, data }`; `peer` emits `{ peer, connected }` when a product peer mapping is learned from a valid frame or later lost; `status` emits the same shape as `getStatus()`.
+
+The `peer` event is a product-peer route hint, not a raw GATT callback. A remote product peer id is deliberately unknown until its first valid in-room frame arrives; for a relayed frame, the learned mapping is the BLE next hop toward its original sender. Hosts may use `connected: true` to start bounded reconciliation immediately; periodic reconciliation remains the recovery path if an event is missed.
 
 ## Wire envelope
 

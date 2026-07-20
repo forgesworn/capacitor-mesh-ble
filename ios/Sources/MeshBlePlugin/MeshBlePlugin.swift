@@ -17,6 +17,7 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
     ]
 
     private let eventFrame = "frame"
+    private let eventPeer = "peer"
     private let eventStatus = "status"
     private let broadcastPeer = "*"
     private let frameCharacteristicUUID = CBUUID(string: "29B8D9F3-2C2B-4ED1-A12C-7401E5B7B37F")
@@ -419,7 +420,7 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
         writeQueues.removeAll()
         writingPeripherals.removeAll()
         inbound.removeAll()
-        peerPeripheralIds.removeAll()
+        forgetAllPeers()
         seenIds.removeAll()
         seenIdSet.removeAll()
         emitStatus()
@@ -639,7 +640,7 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
         }
 
         if let peripheralId = UUID(uuidString: source), writableCharacteristics[peripheralId] != nil {
-            peerPeripheralIds[from] = peripheralId
+            learnPeer(from, at: peripheralId)
         }
 
         let forUs = target == broadcastPeer || target == selfId
@@ -647,7 +648,7 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
         // toward its target; a directed frame for us stops here.
         let relay = target == broadcastPeer || target != selfId
         let hops = number(envelope["h"]) ?? 0
-        if relay, hops > 0 {
+        if initialHops > 0, relay, hops > 0 {
             envelope["h"] = hops - 1
             if let onward = try? JSONSerialization.data(withJSONObject: envelope, options: []),
                onward.count <= maxEnvelopeBytes {
@@ -695,13 +696,37 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
         inbound = inbound.filter { now.timeIntervalSince($0.value.createdAt) <= reassemblyTtl }
     }
 
+    private func learnPeer(_ peer: String, at peripheralId: UUID) {
+        let previous = peerPeripheralIds.updateValue(peripheralId, forKey: peer)
+        if previous != peripheralId {
+            notifyListeners(eventPeer, data: ["peer": peer, "connected": true])
+        }
+    }
+
+    private func forgetPeers(at peripheralId: UUID) {
+        let peers = peerPeripheralIds.filter { $0.value == peripheralId }.map(\.key)
+        for peer in peers {
+            guard peerPeripheralIds[peer] == peripheralId else { continue }
+            peerPeripheralIds.removeValue(forKey: peer)
+            notifyListeners(eventPeer, data: ["peer": peer, "connected": false])
+        }
+    }
+
+    private func forgetAllPeers() {
+        let peers = Array(peerPeripheralIds.keys)
+        peerPeripheralIds.removeAll()
+        for peer in peers {
+            notifyListeners(eventPeer, data: ["peer": peer, "connected": false])
+        }
+    }
+
     private func dropPeripheral(_ peripheral: CBPeripheral) {
         let id = peripheral.identifier
         peripherals.removeValue(forKey: id)
         writableCharacteristics.removeValue(forKey: id)
         writeQueues.removeValue(forKey: id)
         writingPeripherals.remove(id)
-        peerPeripheralIds = peerPeripheralIds.filter { $0.value != id }
+        forgetPeers(at: id)
         emitStatus()
     }
 
