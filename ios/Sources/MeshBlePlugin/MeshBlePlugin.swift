@@ -721,6 +721,14 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
     }
 
     private func dropPeripheral(_ peripheral: CBPeripheral) {
+        // Cancel the underlying GATT connection, not just our bookkeeping. Several
+        // callers (service/characteristic-discovery errors, a failed write) drop a
+        // peripheral whose CoreBluetooth link is still OPEN; without this it leaks a
+        // scarce iOS connection slot forever and survives even stop() (which only
+        // iterates the current `peripherals` dict). A no-op for an already
+        // failed/disconnected peripheral, so it is safe on every teardown path —
+        // mirrors Android's closeLink() → gatt.disconnect()/close().
+        centralManager?.cancelPeripheralConnection(peripheral)
         let id = peripheral.identifier
         peripherals.removeValue(forKey: id)
         writableCharacteristics.removeValue(forKey: id)
