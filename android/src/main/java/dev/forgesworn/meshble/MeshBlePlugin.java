@@ -49,6 +49,7 @@ import android.os.ParcelUuid;
 import android.os.SystemClock;
 import android.util.Log;
 import androidx.core.app.ActivityCompat;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -132,6 +133,12 @@ public class MeshBlePlugin extends Plugin {
     private BluetoothGattCharacteristic inboxCharacteristic; // server→client NOTIFY channel
 
     private UUID serviceUuid;
+    // The UUIDs the SCANNER filters for. Always contains serviceUuid; a product that
+    // rotates its serviceUuid on a time window may add adjacent windows here so it
+    // still discovers a peer whose clock (or rotation boundary) sits a window away.
+    // We still ADVERTISE and serve our GATT only under serviceUuid — this widens
+    // discovery, never presence.
+    private final List<UUID> scanUuids = new ArrayList<>();
     private byte[] roomHash = new byte[0];
     private String room;
     private String selfId;
@@ -257,6 +264,9 @@ public class MeshBlePlugin extends Plugin {
         status.put("room", room == null ? JSONObject.NULL : room);
         status.put("selfId", selfId == null ? JSONObject.NULL : selfId);
         status.put("serviceUuid", serviceUuid == null ? JSONObject.NULL : serviceUuid.toString());
+        JSONArray scanUuidStrings = new JSONArray();
+        for (UUID u : scanUuids) scanUuidStrings.put(u.toString());
+        status.put("scanUuids", scanUuidStrings);
         status.put("advertising", advertisingActive);
         status.put("scanning", scanningActive);
         status.put("gattServer", gattServer != null);
@@ -372,6 +382,7 @@ public class MeshBlePlugin extends Plugin {
         }
 
         serviceUuid = UUID.fromString(nextServiceUuid);
+        parseScanUuids(call, serviceUuid);
         tiebreak = new byte[TIEBREAK_BYTES];
         new SecureRandom().nextBytes(tiebreak);
         room = nextRoom;
@@ -386,7 +397,10 @@ public class MeshBlePlugin extends Plugin {
         connectThrottleMs = boundedInt(call, "connectThrottleMs", 1500, 100, 30_000);
         foregroundService = call.getBoolean("foregroundService", false);
         roomHash = roomHash(nextRoom);
-        Log.d(TAG, "start uuid=" + nextServiceUuid + " hops=" + initialHops + " tiebreak=" + hex(tiebreak));
+        Log.d(
+            TAG,
+            "start uuid=" + nextServiceUuid + " hops=" + initialHops + " scanFilters=" + scanUuids.size() + " tiebreak=" + hex(tiebreak)
+        );
         txFrames = 0;
         txChunks = 0;
         rxFrames = 0;
@@ -498,6 +512,27 @@ public class MeshBlePlugin extends Plugin {
         return new AdvertiseData.Builder().setIncludeDeviceName(false).addServiceData(new ParcelUuid(serviceUuid), roomHash).build();
     }
 
+    /** Build the scanner's filter set from the optional `scanUuids` argument. Invalid
+     *  entries are skipped rather than failing the start; serviceUuid is always the
+     *  first entry, so a product that omits scanUuids keeps the classic single-UUID
+     *  scan unchanged. */
+    private void parseScanUuids(PluginCall call, UUID self) {
+        scanUuids.clear();
+        scanUuids.add(self);
+        JSArray provided = call.getArray("scanUuids", null);
+        if (provided == null) return;
+        for (int i = 0; i < provided.length(); i++) {
+            String raw = provided.optString(i, null);
+            if (isBlank(raw)) continue;
+            try {
+                UUID u = UUID.fromString(raw.trim());
+                if (!scanUuids.contains(u)) scanUuids.add(u);
+            } catch (IllegalArgumentException ignored) {
+                // Skip a malformed UUID; the caller still gets serviceUuid scanning.
+            }
+        }
+    }
+
     @SuppressLint("MissingPermission")
     private void startScanning() {
         if (bluetoothAdapter == null || serviceUuid == null) return;
@@ -507,11 +542,16 @@ public class MeshBlePlugin extends Plugin {
             return;
         }
 
-        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(serviceUuid)).build();
+        // One filter per scan UUID: the platform matches a peer that advertises ANY
+        // of them (OR semantics), so a member a window or two away is still found.
+        List<ScanFilter> filters = new ArrayList<>();
+        for (UUID u : scanUuids) filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(u)).build());
+        if (filters.isEmpty()) filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(serviceUuid)).build());
         ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
         try {
-            scanner.startScan(Collections.singletonList(filter), settings, scanCallback);
+            scanner.startScan(filters, settings, scanCallback);
             scanningActive = true;
+            Log.d(TAG, "scanning " + filters.size() + " filter(s)");
             emitStatus();
         } catch (RuntimeException e) {
             scanningActive = false;
@@ -574,6 +614,7 @@ public class MeshBlePlugin extends Plugin {
             seenIds.clear();
         }
         serviceUuid = null;
+        scanUuids.clear();
         roomHash = new byte[0];
         room = null;
         selfId = null;
@@ -782,6 +823,22 @@ public class MeshBlePlugin extends Plugin {
                 emitStatus();
             }
         }, 750);
+    }
+
+    /** Locate the peer's mesh service on a freshly-discovered link. A peer serves its
+     *  GATT under whichever window UUID it currently advertises — one of our scanUuids,
+     *  but not necessarily our own serviceUuid once rotation is in play. Rather than
+     *  depend on exactly which window matched, we find the service by our own private
+     *  frame characteristic: unambiguous (the characteristic UUID is ours alone) and
+     *  robust to any drift between the advert we matched and the service on the link.
+     *  A single-UUID product (no scanUuids) still resolves its one service here. */
+    private BluetoothGattService findMeshService(BluetoothGatt gatt) {
+        List<BluetoothGattService> services = gatt.getServices();
+        if (services == null) return null;
+        for (BluetoothGattService s : services) {
+            if (s != null && s.getCharacteristic(FRAME_CHARACTERISTIC_UUID) != null) return s;
+        }
+        return null;
     }
 
     /** Enable notifications on the peer's INBOX characteristic — the reverse channel
@@ -1362,7 +1419,7 @@ public class MeshBlePlugin extends Plugin {
                 return;
             }
 
-            BluetoothGattService service = gatt.getService(serviceUuid);
+            BluetoothGattService service = findMeshService(gatt);
             if (service == null) {
                 retryServiceDiscovery(gatt, link);
                 return;

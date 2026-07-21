@@ -185,53 +185,55 @@ removeAllListeners() => Promise<void>
 
 #### MeshBleStartOptions
 
-| Prop                    | Type                 | Description                                                               |
-| ----------------------- | -------------------- | ------------------------------------------------------------------------- |
-| **`room`**              | <code>string</code>  | Product-defined room/domain separator carried inside every envelope.      |
-| **`selfId`**            | <code>string</code>  | Product-defined local peer identifier, revealed only after a GATT link.   |
-| **`serviceUuid`**       | <code>string</code>  | Runtime discovery/GATT UUID. The plugin never derives or rotates it.      |
-| **`hops`**              | <code>number</code>  | Maximum relay hops for locally-originated frames. Zero disables relaying. |
-| **`foregroundService`** | <code>boolean</code> | Keep the Android radio anchored in a connected-device foreground service. |
-| **`notificationTitle`** | <code>string</code>  | Android foreground-service notification title.                            |
-| **`notificationText`**  | <code>string</code>  | Android foreground-service notification body.                             |
-| **`maxEnvelopeBytes`**  | <code>number</code>  | Hard ceiling for a UTF-8 envelope before chunking. Default: 8192.         |
-| **`maxSeenIds`**        | <code>number</code>  | Deduplication window. Default: 512 envelope identifiers.                  |
-| **`reassemblyTtlMs`**   | <code>number</code>  | Incomplete chunk assembly lifetime. Default: 30000ms.                     |
-| **`maxClientLinks`**    | <code>number</code>  | Android client-role GATT link cap. Default: 3.                            |
-| **`connectCooldownMs`** | <code>number</code>  | Android reconnect backoff per BLE address. Default: 4000ms.               |
-| **`connectThrottleMs`** | <code>number</code>  | Android global connection-attempt throttle. Default: 1500ms.              |
+| Prop                    | Type                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`room`**              | <code>string</code>   | Product-defined room/domain separator carried inside every envelope.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| **`selfId`**            | <code>string</code>   | Product-defined local peer identifier, revealed only after a GATT link.                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **`serviceUuid`**       | <code>string</code>   | Runtime discovery/GATT UUID. The plugin advertises and hosts its GATT service under exactly this one UUID. The plugin never derives or rotates it.                                                                                                                                                                                                                                                                                                                                                                                               |
+| **`scanUuids`**         | <code>string[]</code> | Optional set of service UUIDs the scanner filters for, when a product rotates its `serviceUuid` on a time window and must still discover peers a window or two away (clock skew, a rotation boundary crossed at slightly different moments). Match semantics are OR: a peer advertising ANY of these is a candidate. `serviceUuid` is always implicitly included. Omit (or leave empty) for the classic single-UUID behaviour, where the plugin scans for exactly `serviceUuid`. The plugin advertises only `serviceUuid`, never this whole set. |
+| **`hops`**              | <code>number</code>   | Maximum relay hops for locally-originated frames. Zero disables relaying.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **`foregroundService`** | <code>boolean</code>  | Keep the Android radio anchored in a connected-device foreground service.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **`notificationTitle`** | <code>string</code>   | Android foreground-service notification title.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **`notificationText`**  | <code>string</code>   | Android foreground-service notification body.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **`maxEnvelopeBytes`**  | <code>number</code>   | Hard ceiling for a UTF-8 envelope before chunking. Default: 8192.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **`maxSeenIds`**        | <code>number</code>   | Deduplication window. Default: 512 envelope identifiers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **`reassemblyTtlMs`**   | <code>number</code>   | Incomplete chunk assembly lifetime. Default: 30000ms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **`maxClientLinks`**    | <code>number</code>   | Android client-role GATT link cap. Default: 3.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **`connectCooldownMs`** | <code>number</code>   | Android reconnect backoff per BLE address. Default: 4000ms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **`connectThrottleMs`** | <code>number</code>   | Android global connection-attempt throttle. Default: 1500ms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 
 #### MeshBleStatus
 
-| Prop                     | Type                                     |
-| ------------------------ | ---------------------------------------- |
-| **`native`**             | <code>boolean</code>                     |
-| **`platform`**           | <code>'android' \| 'ios' \| 'web'</code> |
-| **`supported`**          | <code>boolean</code>                     |
-| **`running`**            | <code>boolean</code>                     |
-| **`bluetooth`**          | <code>string</code>                      |
-| **`permissions`**        | <code>string</code>                      |
-| **`missingPermissions`** | <code>string[]</code>                    |
-| **`room`**               | <code>string \| null</code>              |
-| **`selfId`**             | <code>string \| null</code>              |
-| **`serviceUuid`**        | <code>string \| null</code>              |
-| **`advertising`**        | <code>boolean</code>                     |
-| **`scanning`**           | <code>boolean</code>                     |
-| **`gattServer`**         | <code>boolean</code>                     |
-| **`connectedPeers`**     | <code>number</code>                      |
-| **`writablePeers`**      | <code>number</code>                      |
-| **`knownPeers`**         | <code>number</code>                      |
-| **`queuedChunks`**       | <code>number</code>                      |
-| **`txFrames`**           | <code>number</code>                      |
-| **`txChunks`**           | <code>number</code>                      |
-| **`rxFrames`**           | <code>number</code>                      |
-| **`rxChunks`**           | <code>number</code>                      |
-| **`droppedFrames`**      | <code>number</code>                      |
-| **`relayedFrames`**      | <code>number</code>                      |
-| **`lastError`**          | <code>string \| null</code>              |
-| **`peers`**              | <code>MeshBlePeerStatus[]</code>         |
-| **`updatedAt`**          | <code>number</code>                      |
+| Prop                     | Type                                     | Description                                                                                                                              |
+| ------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **`native`**             | <code>boolean</code>                     |                                                                                                                                          |
+| **`platform`**           | <code>'android' \| 'ios' \| 'web'</code> |                                                                                                                                          |
+| **`supported`**          | <code>boolean</code>                     |                                                                                                                                          |
+| **`running`**            | <code>boolean</code>                     |                                                                                                                                          |
+| **`bluetooth`**          | <code>string</code>                      |                                                                                                                                          |
+| **`permissions`**        | <code>string</code>                      |                                                                                                                                          |
+| **`missingPermissions`** | <code>string[]</code>                    |                                                                                                                                          |
+| **`room`**               | <code>string \| null</code>              |                                                                                                                                          |
+| **`selfId`**             | <code>string \| null</code>              |                                                                                                                                          |
+| **`serviceUuid`**        | <code>string \| null</code>              |                                                                                                                                          |
+| **`scanUuids`**          | <code>string[]</code>                    | The UUID set the scanner is filtering for (includes `serviceUuid`). Single entry unless the product supplied a wider `scanUuids` window. |
+| **`advertising`**        | <code>boolean</code>                     |                                                                                                                                          |
+| **`scanning`**           | <code>boolean</code>                     |                                                                                                                                          |
+| **`gattServer`**         | <code>boolean</code>                     |                                                                                                                                          |
+| **`connectedPeers`**     | <code>number</code>                      |                                                                                                                                          |
+| **`writablePeers`**      | <code>number</code>                      |                                                                                                                                          |
+| **`knownPeers`**         | <code>number</code>                      |                                                                                                                                          |
+| **`queuedChunks`**       | <code>number</code>                      |                                                                                                                                          |
+| **`txFrames`**           | <code>number</code>                      |                                                                                                                                          |
+| **`txChunks`**           | <code>number</code>                      |                                                                                                                                          |
+| **`rxFrames`**           | <code>number</code>                      |                                                                                                                                          |
+| **`rxChunks`**           | <code>number</code>                      |                                                                                                                                          |
+| **`droppedFrames`**      | <code>number</code>                      |                                                                                                                                          |
+| **`relayedFrames`**      | <code>number</code>                      |                                                                                                                                          |
+| **`lastError`**          | <code>string \| null</code>              |                                                                                                                                          |
+| **`peers`**              | <code>MeshBlePeerStatus[]</code>         |                                                                                                                                          |
+| **`updatedAt`**          | <code>number</code>                      |                                                                                                                                          |
 
 
 #### MeshBlePeerStatus

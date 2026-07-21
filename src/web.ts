@@ -41,6 +41,7 @@ export class MeshBleWeb extends WebPlugin implements MeshBlePlugin {
       room: null,
       selfId: null,
       serviceUuid: null,
+      scanUuids: [],
       advertising: false,
       scanning: false,
       gattServer: false,

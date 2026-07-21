@@ -43,6 +43,12 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
     private var centralManager: CBCentralManager?
     private var peripheralManager: CBPeripheralManager?
     private var serviceUUID: CBUUID?
+    // The service UUIDs the SCANNER filters for. Always contains serviceUUID; a
+    // product that rotates serviceUUID on a time window may add adjacent windows so
+    // it still discovers a peer whose clock (or rotation boundary) sits a window
+    // away. We ADVERTISE and host our GATT only under serviceUUID — this widens
+    // discovery, never presence.
+    private var scanUUIDs: [CBUUID] = []
     private var frameCharacteristic: CBMutableCharacteristic?
 
     private var room: String?
@@ -154,7 +160,9 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
 
             room = nextRoom
             selfId = nextSelfId
-            serviceUUID = CBUUID(string: serviceUuidText)
+            let service = CBUUID(string: serviceUuidText)
+            serviceUUID = service
+            scanUUIDs = parseScanUUIDs(call, self: service)
             initialHops = bounded(call.getInt("hops", 0), minimum: 0, maximum: 8)
             maxEnvelopeBytes = bounded(call.getInt("maxEnvelopeBytes", 8192), minimum: 256, maximum: 65_536)
             maxSeenIds = bounded(call.getInt("maxSeenIds", 512), minimum: 32, maximum: 8192)
@@ -240,6 +248,7 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
             "room": room ?? NSNull(),
             "selfId": selfId ?? NSNull(),
             "serviceUuid": serviceUUID?.uuidString ?? NSNull(),
+            "scanUuids": scanUUIDs.map { $0.uuidString },
             "advertising": advertisingActive,
             "scanning": scanningActive,
             "gattServer": frameCharacteristic != nil,
@@ -385,8 +394,12 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
     private func startCentralRole() {
         guard let central = centralManager, let serviceUUID, running, central.state == .poweredOn else { return }
         central.stopScan()
+        // OR semantics: CoreBluetooth surfaces a peripheral advertising ANY of these,
+        // so a member a window or two away (clock skew / a rotation boundary) is still
+        // discovered. Falls back to serviceUUID alone when no wider set was supplied.
+        let filter = scanUUIDs.isEmpty ? [serviceUUID] : scanUUIDs
         central.scanForPeripherals(
-            withServices: [serviceUUID],
+            withServices: filter,
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]
         )
         scanningActive = true
@@ -412,6 +425,7 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
         peripheralManager = nil
         frameCharacteristic = nil
         serviceUUID = nil
+        scanUUIDs.removeAll()
         room = nil
         selfId = nil
 
@@ -680,6 +694,23 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
         return max(minimum, min(maximum, value))
     }
 
+    /// Build the scanner's filter set from the optional `scanUuids` argument. Invalid
+    /// entries are skipped rather than failing the start; serviceUUID is always the
+    /// first entry, so a product that omits scanUuids keeps the classic single-UUID
+    /// scan unchanged.
+    private func parseScanUUIDs(_ call: CAPPluginCall, self selfUUID: CBUUID) -> [CBUUID] {
+        var result: [CBUUID] = [selfUUID]
+        guard let raw = call.getArray("scanUuids") else { return result }
+        for entry in raw {
+            guard let text = entry as? String else { continue }
+            let trimmed = text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            guard UUID(uuidString: trimmed) != nil else { continue }
+            let uuid = CBUUID(string: trimmed)
+            if !result.contains(uuid) { result.append(uuid) }
+        }
+        return result
+    }
+
     private func rememberSeen(_ id: String) -> Bool {
         if seenIdSet.contains(id) { return false }
         seenIdSet.insert(id)
@@ -752,9 +783,11 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        guard running, let serviceUUID else { return }
+        guard running, serviceUUID != nil else { return }
         peripheral.delegate = self
-        peripheral.discoverServices([serviceUUID])
+        // Discover the window UUID this peer actually serves under — one of our scan
+        // set, not necessarily our own serviceUUID once rotation is in play.
+        peripheral.discoverServices(scanUUIDs.isEmpty ? (serviceUUID.map { [$0] }) : scanUUIDs)
         emitStatus()
     }
 
@@ -783,7 +816,10 @@ public class MeshBlePlugin: CAPPlugin, CAPBridgedPlugin, CBCentralManagerDelegat
             return
         }
         guard let services = peripheral.services else { return }
-        for service in services where service.uuid == serviceUUID {
+        // The peer serves under whichever window UUID it currently advertises — one of
+        // our scan set. We only asked CoreBluetooth for services in that set, so every
+        // returned service is a mesh candidate; probe each for our frame characteristic.
+        for service in services where scanUUIDs.isEmpty || scanUUIDs.contains(service.uuid) {
             peripheral.discoverCharacteristics([frameCharacteristicUUID], for: service)
             emitStatus()
         }

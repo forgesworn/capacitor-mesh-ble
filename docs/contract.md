@@ -18,7 +18,13 @@
 
 ## JavaScript API
 
-- `start(options)` validates and starts both BLE roles.
+- `start(options)` validates and starts both BLE roles. A product that rotates
+  `serviceUuid` on a time window may pass `scanUuids` — the set of UUIDs the scanner
+  filters for (OR semantics; `serviceUuid` is always implicitly included) — so it
+  still discovers a member whose clock or rotation boundary sits a window away. The
+  device still advertises and hosts its GATT service only under `serviceUuid`; the
+  wider set widens discovery, never presence. Omitting `scanUuids` preserves the
+  classic single-UUID scan exactly.
 - `stop()` tears down scanners, advertisers, links, queues and background work.
 - `broadcast({ data })` queues an opaque frame for all writable peers.
 - `send({ peer, data })` uses a learned peer mapping when possible and otherwise floods safely.
@@ -86,6 +92,12 @@ Android uses a write characteristic and a reverse notify characteristic so two A
 
 iOS declares and uses CoreBluetooth central/peripheral roles. `setKeepaliveFrame` lets the host provide a safe, already-signed liveness frame that native code may repeat while WebKit is suspended. Payload interpretation remains entirely in the host.
 
+## Rotating discovery UUIDs
+
+A product whose `serviceUuid` rotates on a time window (for privacy — an unchanging service UUID is a physical-world device tracker) must tolerate peers a window or two away: clocks drift and two devices cross a boundary at slightly different instants. `scanUuids` lets the scanner match the neighbouring windows while the device keeps advertising only its single current-window `serviceUuid` (one 128-bit UUID is already near the legacy-advert byte budget, so the set is a scan concern, not an advertise one).
+
+Because the peer then serves its GATT under whichever window UUID it currently advertises — not necessarily the initiator's own `serviceUuid` — the client locates the peer's service by the private frame characteristic rather than by an exact service-UUID match. This is transparent to a single-UUID product (its one service still resolves) and needs no product change.
+
 ## Compatibility policy
 
-Changes to the envelope fields, chunk header, characteristic UUIDs, event shapes or required start options are protocol changes. Additive options and status fields are library changes. Protocol changes require frozen fixtures and old/new interoperability tests before a major release.
+Changes to the envelope fields, chunk header, characteristic UUIDs, event shapes or required start options are protocol changes. Additive options (such as `scanUuids`) and status fields are library changes. Protocol changes require frozen fixtures and old/new interoperability tests before a major release.
