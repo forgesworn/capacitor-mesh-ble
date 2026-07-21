@@ -34,9 +34,12 @@ npx cap sync
 * [`send(...)`](#send)
 * [`setKeepaliveFrame(...)`](#setkeepaliveframe)
 * [`getStatus()`](#getstatus)
+* [`startRssiSampling(...)`](#startrssisampling)
+* [`stopRssiSampling()`](#stoprssisampling)
 * [`addListener('frame', ...)`](#addlistenerframe-)
 * [`addListener('peer', ...)`](#addlistenerpeer-)
 * [`addListener('status', ...)`](#addlistenerstatus-)
+* [`addListener('rssi', ...)`](#addlistenerrssi-)
 * [`removeAllListeners()`](#removealllisteners)
 * [Interfaces](#interfaces)
 
@@ -123,6 +126,36 @@ getStatus() => Promise<MeshBleStatus>
 --------------------
 
 
+### startRssiSampling(...)
+
+```typescript
+startRssiSampling(options?: MeshBleStartRssiSamplingOptions | undefined) => Promise<void>
+```
+
+Start periodic RSSI sampling: polls connected GATT links and attributes scanned
+advertisement RSSI, for peers already identified via a prior frame exchange.
+Off by default (battery cost). Idempotent — calling this again while sampling
+just updates the interval. Stops automatically when the transport is stopped.
+Android only for now; a no-op elsewhere.
+
+| Param         | Type                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| **`options`** | <code><a href="#meshblestartrssisamplingoptions">MeshBleStartRssiSamplingOptions</a></code> |
+
+--------------------
+
+
+### stopRssiSampling()
+
+```typescript
+stopRssiSampling() => Promise<void>
+```
+
+Stop RSSI sampling. Idempotent — safe to call when not sampling.
+
+--------------------
+
+
 ### addListener('frame', ...)
 
 ```typescript
@@ -165,6 +198,22 @@ addListener(eventName: 'status', listenerFunc: (status: MeshBleStatus) => void) 
 | ------------------ | ---------------------------------------------------------------------------- |
 | **`eventName`**    | <code>'status'</code>                                                        |
 | **`listenerFunc`** | <code>(status: <a href="#meshblestatus">MeshBleStatus</a>) =&gt; void</code> |
+
+**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
+
+--------------------
+
+
+### addListener('rssi', ...)
+
+```typescript
+addListener(eventName: 'rssi', listenerFunc: (event: MeshBleRssiSample) => void) => Promise<PluginListenerHandle>
+```
+
+| Param              | Type                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| **`eventName`**    | <code>'rssi'</code>                                                                 |
+| **`listenerFunc`** | <code>(event: <a href="#meshblerssisample">MeshBleRssiSample</a>) =&gt; void</code> |
 
 **Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
 
@@ -249,6 +298,13 @@ removeAllListeners() => Promise<void>
 | **`writing`**      | <code>boolean</code>  |
 
 
+#### MeshBleStartRssiSamplingOptions
+
+| Prop             | Type                | Description                                                |
+| ---------------- | ------------------- | ---------------------------------------------------------- |
+| **`intervalMs`** | <code>number</code> | Sampling interval in ms. Default: 2000, bounded 500-10000. |
+
+
 #### PluginListenerHandle
 
 | Prop         | Type                                      |
@@ -272,5 +328,21 @@ A product peer became reachable through a learned BLE next hop, or that route wa
 | --------------- | -------------------- |
 | **`peer`**      | <code>string</code>  |
 | **`connected`** | <code>boolean</code> |
+
+
+#### MeshBleRssiSample
+
+A raw RSSI sample, attributed to an authenticated mesh peer. The plugin only ever
+attributes a sample via an identified link — a BLE MAC address already bound to a
+peer id by a prior frame exchange. Banding or distance estimation is a product
+concern; this plugin reports dBm only. Emitted on Android only for now.
+
+| Prop          | Type                            | Description                                                                |
+| ------------- | ------------------------------- | -------------------------------------------------------------------------- |
+| **`peer`**    | <code>string</code>             | The authenticated mesh peer id this sample is attributed to.               |
+| **`address`** | <code>string</code>             | The BLE MAC address the sample was observed at.                            |
+| **`rssi`**    | <code>number</code>             | Signal strength in dBm.                                                    |
+| **`source`**  | <code>'gatt' \| 'advert'</code> | Whether the reading came from a live GATT link or a scanned advertisement. |
+| **`at`**      | <code>number</code>             | Epoch ms when the sample was taken.                                        |
 
 </docgen-api>

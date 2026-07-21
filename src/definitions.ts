@@ -51,6 +51,30 @@ export interface MeshBlePeerEvent {
   connected: boolean;
 }
 
+export interface MeshBleStartRssiSamplingOptions {
+  /** Sampling interval in ms. Default: 2000, bounded 500-10000. */
+  intervalMs?: number;
+}
+
+/**
+ * A raw RSSI sample, attributed to an authenticated mesh peer. The plugin only ever
+ * attributes a sample via an identified link — a BLE MAC address already bound to a
+ * peer id by a prior frame exchange. Banding or distance estimation is a product
+ * concern; this plugin reports dBm only. Emitted on Android only for now.
+ */
+export interface MeshBleRssiSample {
+  /** The authenticated mesh peer id this sample is attributed to. */
+  peer: string;
+  /** The BLE MAC address the sample was observed at. */
+  address: string;
+  /** Signal strength in dBm. */
+  rssi: number;
+  /** Whether the reading came from a live GATT link or a scanned advertisement. */
+  source: 'gatt' | 'advert';
+  /** Epoch ms when the sample was taken. */
+  at: number;
+}
+
 export interface MeshBlePeerStatus {
   address?: string;
   peerIds: string[];
@@ -101,8 +125,19 @@ export interface MeshBlePlugin {
   /** iOS may repeat this frame while JavaScript is suspended in the background. */
   setKeepaliveFrame(options: { data: string | null }): Promise<void>;
   getStatus(): Promise<MeshBleStatus>;
+  /**
+   * Start periodic RSSI sampling: polls connected GATT links and attributes scanned
+   * advertisement RSSI, for peers already identified via a prior frame exchange.
+   * Off by default (battery cost). Idempotent — calling this again while sampling
+   * just updates the interval. Stops automatically when the transport is stopped.
+   * Android only for now; a no-op elsewhere.
+   */
+  startRssiSampling(options?: MeshBleStartRssiSamplingOptions): Promise<void>;
+  /** Stop RSSI sampling. Idempotent — safe to call when not sampling. */
+  stopRssiSampling(): Promise<void>;
   addListener(eventName: 'frame', listenerFunc: (event: MeshBleFrameEvent) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'peer', listenerFunc: (event: MeshBlePeerEvent) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'status', listenerFunc: (status: MeshBleStatus) => void): Promise<PluginListenerHandle>;
+  addListener(eventName: 'rssi', listenerFunc: (event: MeshBleRssiSample) => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }

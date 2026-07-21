@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `startRssiSampling`/`stopRssiSampling` and a new `rssi` event (Android only for now): polls RSSI on connected GATT links and attributes scanned advertisement RSSI, but only for a BLE MAC already bound to an authenticated peer id via a prior frame exchange — an unbound advert never produces a sample. Off by default (battery cost), bounded 500-10000ms interval, stops automatically when the transport is stopped. A new `MeshBleRssiBus` (Android) lets a native component in the same process (e.g. a foreground service) observe samples without going through the WebView bridge.
 - `scanUuids` start option: a product that rotates `serviceUuid` on a time window can now have the scanner filter for a set of UUIDs (OR semantics, `serviceUuid` always included), so it still discovers members a window or two away across clock skew and rotation boundaries. The device still advertises and hosts its GATT under `serviceUuid` alone. The client now locates a peer's service by the frame characteristic rather than an exact service-UUID match, so a peer serving under an adjacent-window UUID is still bound. `scanUuids` is also reported in `getStatus()`.
 
 ### Fixed
