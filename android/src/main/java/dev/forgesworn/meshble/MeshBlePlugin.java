@@ -397,7 +397,10 @@ public class MeshBlePlugin extends Plugin {
         connectThrottleMs = boundedInt(call, "connectThrottleMs", 1500, 100, 30_000);
         foregroundService = call.getBoolean("foregroundService", false);
         roomHash = roomHash(nextRoom);
-        Log.d(TAG, "start uuid=" + nextServiceUuid + " hops=" + initialHops + " tiebreak=" + hex(tiebreak));
+        Log.d(
+            TAG,
+            "start uuid=" + nextServiceUuid + " hops=" + initialHops + " scanFilters=" + scanUuids.size() + " tiebreak=" + hex(tiebreak)
+        );
         txFrames = 0;
         txChunks = 0;
         rxFrames = 0;
@@ -548,6 +551,7 @@ public class MeshBlePlugin extends Plugin {
         try {
             scanner.startScan(filters, settings, scanCallback);
             scanningActive = true;
+            Log.d(TAG, "scanning " + filters.size() + " filter(s)");
             emitStatus();
         } catch (RuntimeException e) {
             scanningActive = false;
