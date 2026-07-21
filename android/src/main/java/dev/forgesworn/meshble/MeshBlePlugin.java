@@ -95,6 +95,7 @@ public class MeshBlePlugin extends Plugin {
     private static final String EVENT_FRAME = "frame";
     private static final String EVENT_PEER = "peer";
     private static final String EVENT_STATUS = "status";
+    private static final String EVENT_RSSI = "rssi";
     private static final String BROADCAST = "*";
     // Frame characteristic: client → server (WRITE). Inbox characteristic: server →
     // client (NOTIFY) — the reverse direction that makes a single arbitrated link
@@ -110,6 +111,9 @@ public class MeshBlePlugin extends Plugin {
     private static final int MANUF_ID = 0xFFFF; // advert manufacturer-data id for our tiebreak
     private static final int TIEBREAK_BYTES = 4;
     private static final int MAX_HOPS = 8; // clamp the mesh hop budget (loop/storm backstop)
+    private static final int RSSI_INTERVAL_DEFAULT_MS = 2000;
+    private static final int RSSI_INTERVAL_MIN_MS = 500;
+    private static final int RSSI_INTERVAL_MAX_MS = 10_000;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Map<String, Link> links = new ConcurrentHashMap<>(); // links WE initiated (client role)
@@ -164,6 +168,18 @@ public class MeshBlePlugin extends Plugin {
     private long droppedFrames = 0;
     private long relayedFrames = 0;
     private String lastError;
+
+    // RSSI sampling is off by default (battery); armed explicitly by the host app.
+    private boolean rssiSampling = false;
+    private int rssiIntervalMs = RSSI_INTERVAL_DEFAULT_MS;
+    private final Runnable rssiSamplingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!rssiSampling || !running) return;
+            pollGattRssi();
+            mainHandler.postDelayed(this, rssiIntervalMs);
+        }
+    };
 
     @PluginMethod
     public void start(PluginCall call) {
@@ -243,6 +259,28 @@ public class MeshBlePlugin extends Plugin {
     @PluginMethod
     public void getStatus(PluginCall call) {
         call.resolve(buildStatus());
+    }
+
+    /** Arm periodic RSSI polling of connected client links, plus attribution of
+     *  scanned advert RSSI for already-bound peers. Off by default (battery cost);
+     *  idempotent — calling this again just re-reads intervalMs. Samples are only
+     *  ever attributed to a MAC already bound to an authenticated peer id via
+     *  learnPeer(); an unbound MAC produces no event. */
+    @PluginMethod
+    public void startRssiSampling(PluginCall call) {
+        rssiIntervalMs = boundedInt(call, "intervalMs", RSSI_INTERVAL_DEFAULT_MS, RSSI_INTERVAL_MIN_MS, RSSI_INTERVAL_MAX_MS);
+        if (!rssiSampling) {
+            rssiSampling = true;
+            mainHandler.removeCallbacks(rssiSamplingRunnable);
+            mainHandler.post(rssiSamplingRunnable);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopRssiSampling(PluginCall call) {
+        stopRssiSamplingInternal();
+        call.resolve();
     }
 
     @Override
@@ -565,6 +603,7 @@ public class MeshBlePlugin extends Plugin {
         running = false;
         advertisingActive = false;
         scanningActive = false;
+        stopRssiSamplingInternal();
 
         if (scanner != null) {
             try {
@@ -1083,6 +1122,55 @@ public class MeshBlePlugin extends Plugin {
         mainHandler.post(() -> notifyListeners(EVENT_PEER, event));
     }
 
+    private void stopRssiSamplingInternal() {
+        rssiSampling = false;
+        mainHandler.removeCallbacks(rssiSamplingRunnable);
+    }
+
+    /** Read RSSI on every connected client-role link (the `links` we initiated —
+     *  BluetoothGatt.readRemoteRssi() has no equivalent for peers that connected to
+     *  OUR server). Result arrives asynchronously in clientCallback.onReadRemoteRssi. */
+    @SuppressLint("MissingPermission")
+    private void pollGattRssi() {
+        for (Link link : links.values()) {
+            if (link.gatt == null) continue;
+            try {
+                link.gatt.readRemoteRssi();
+            } catch (RuntimeException ignored) {
+                // Best-effort; the link can be mid-teardown when this fires.
+            }
+        }
+    }
+
+    /** Attribute an RSSI sample to every authenticated peer id bound to this MAC
+     *  (learnPeer/peerIdsFor) and publish it both to JS listeners and to
+     *  MeshBleRssiBus. A MAC with no bound peer id yields no event — RSSI may only
+     *  ever be attributed via an identified link, never a raw unbound advert. */
+    private void emitRssiForAddress(String address, int rssi, String source) {
+        if (isBlank(address)) return;
+        JSONArray ids = peerIdsFor(address);
+        if (ids.length() == 0) return;
+        long at = System.currentTimeMillis();
+        for (int i = 0; i < ids.length(); i++) {
+            String peer;
+            try {
+                peer = ids.getString(i);
+            } catch (JSONException e) {
+                continue;
+            }
+            JSObject event = new JSObject();
+            event.put("peer", peer);
+            event.put("address", address);
+            event.put("rssi", rssi);
+            event.put("source", source);
+            event.put("at", at);
+            mainHandler.post(() -> notifyListeners(EVENT_RSSI, event));
+            // Published inline, on whatever thread this sample arrived on (GATT
+            // callback / scan callback binder thread) — see MeshBleRssiBus.
+            MeshBleRssiBus.publish(peer, address, rssi, source, at);
+        }
+    }
+
     @SuppressLint("MissingPermission")
     private void closeLink(String address) {
         Link link = links.remove(address);
@@ -1222,6 +1310,11 @@ public class MeshBlePlugin extends Plugin {
             ScanRecord record = result.getScanRecord();
             if (record != null) peerTiebreak = record.getManufacturerSpecificData(MANUF_ID);
             if (shouldInitiate(peerTiebreak)) connect(result.getDevice());
+
+            // Attribution-only: a raw advert RSSI is reported ONLY when its MAC is
+            // already bound to an authenticated peer id (learnPeer, from a prior
+            // frame exchange). An unbound advert never produces a sample.
+            if (rssiSampling) emitRssiForAddress(result.getDevice().getAddress(), result.getRssi(), "advert");
         }
 
         @Override
@@ -1469,6 +1562,12 @@ public class MeshBlePlugin extends Plugin {
                 closeLink(address);
             }
             emitStatus();
+        }
+
+        @Override
+        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+            if (status != BluetoothGatt.GATT_SUCCESS) return;
+            emitRssiForAddress(addressFor(gatt), rssi, "gatt");
         }
     };
 

@@ -1,6 +1,6 @@
 import { WebPlugin } from '@capacitor/core';
 
-import type { MeshBlePlugin, MeshBleStartOptions, MeshBleStatus } from './definitions';
+import type { MeshBlePlugin, MeshBleStartOptions, MeshBleStartRssiSamplingOptions, MeshBleStatus } from './definitions';
 
 const unavailable = (): Error => new Error('BLE mesh transport is unavailable on the web');
 
@@ -26,6 +26,15 @@ export class MeshBleWeb extends WebPlugin implements MeshBlePlugin {
 
   async setKeepaliveFrame(_options: { data: string | null }): Promise<void> {
     void _options;
+    return;
+  }
+
+  async startRssiSampling(_options?: MeshBleStartRssiSamplingOptions): Promise<void> {
+    void _options;
+    return;
+  }
+
+  async stopRssiSampling(): Promise<void> {
     return;
   }
 
