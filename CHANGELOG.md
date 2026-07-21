@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `scanUuids` start option: a product that rotates `serviceUuid` on a time window can now have the scanner filter for a set of UUIDs (OR semantics, `serviceUuid` always included), so it still discovers members a window or two away across clock skew and rotation boundaries. The device still advertises and hosts its GATT under `serviceUuid` alone. The client now locates a peer's service by the frame characteristic rather than an exact service-UUID match, so a peer serving under an adjacent-window UUID is still bound. `scanUuids` is also reported in `getStatus()`.
+
+### Fixed
+
+- Cancel the underlying GATT connection when dropping a peripheral on iOS, instead of only clearing local bookkeeping — a discovery/write error no longer leaks a scarce CoreBluetooth connection slot.
+
 ## [0.2.0] - 2026-07-20
 
 ### Added

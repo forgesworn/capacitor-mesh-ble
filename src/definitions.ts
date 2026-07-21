@@ -5,8 +5,19 @@ export interface MeshBleStartOptions {
   room: string;
   /** Product-defined local peer identifier, revealed only after a GATT link. */
   selfId: string;
-  /** Runtime discovery/GATT UUID. The plugin never derives or rotates it. */
+  /** Runtime discovery/GATT UUID. The plugin advertises and hosts its GATT service
+   *  under exactly this one UUID. The plugin never derives or rotates it. */
   serviceUuid: string;
+  /**
+   * Optional set of service UUIDs the scanner filters for, when a product rotates
+   * its `serviceUuid` on a time window and must still discover peers a window or
+   * two away (clock skew, a rotation boundary crossed at slightly different
+   * moments). Match semantics are OR: a peer advertising ANY of these is a
+   * candidate. `serviceUuid` is always implicitly included. Omit (or leave empty)
+   * for the classic single-UUID behaviour, where the plugin scans for exactly
+   * `serviceUuid`. The plugin advertises only `serviceUuid`, never this whole set.
+   */
+  scanUuids?: string[];
   /** Maximum relay hops for locally-originated frames. Zero disables relaying. */
   hops?: number;
   /** Keep the Android radio anchored in a connected-device foreground service. */
@@ -61,6 +72,9 @@ export interface MeshBleStatus {
   room: string | null;
   selfId: string | null;
   serviceUuid: string | null;
+  /** The UUID set the scanner is filtering for (includes `serviceUuid`). Single
+   *  entry unless the product supplied a wider `scanUuids` window. */
+  scanUuids: string[];
   advertising: boolean;
   scanning: boolean;
   gattServer: boolean;
