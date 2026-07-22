@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "allowUnreachableCode": false,
+    "esModuleInterop": true,
+    "lib": ["dom", "es2020"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "dist-test",
+    "pretty": true,
+    "strict": true,
+    "target": "es2020",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src/web.ts", "src/definitions.ts", "src/web.test.ts"]
+}
