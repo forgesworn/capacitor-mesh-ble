@@ -76,6 +76,22 @@ final class MeshBleWire {
         return localRelayHops > 0 && remainingHops > 0 && ("*".equals(target) || !String.valueOf(selfId).equals(target));
     }
 
+    /**
+     * May an RSSI sample be attributed to the peer id bound to the MAC it arrived on?
+     * Only on a DIRECT link — i.e. when this device does not relay ({@code
+     * localRelayHops == 0}, the discreet single-hop mode). The moment relaying is on
+     * (crowd/mesh mode) attribution stops being honest two ways: a frame that crossed
+     * a hop binds its self-declared origin id to the RELAYER's MAC, not the sender's;
+     * and the crowd discovery UUID is keyless, so any nearby device can inject an
+     * origin id to bind its own MAC to a chosen identity. Neither is proximity to the
+     * named peer, so attribution — and therefore the whole RSSI-proximity signal — is
+     * suppressed while relaying. Discreet mode keeps it (seed-keyed UUID, no relay:
+     * the binding reflects the MAC that connected to us directly).
+     */
+    static boolean shouldAttributeRssi(int localRelayHops) {
+        return localRelayHops == 0;
+    }
+
     record Chunk(int messageId, int index, int total, byte[] payload) {}
 
     static final class Reassembly {

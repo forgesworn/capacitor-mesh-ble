@@ -1148,6 +1148,14 @@ public class MeshBlePlugin extends Plugin {
      *  ever be attributed via an identified link, never a raw unbound advert. */
     private void emitRssiForAddress(String address, int rssi, String source) {
         if (isBlank(address)) return;
+        // Honesty gate: an attributed RSSI claims physical proximity to the named
+        // peer, which only holds on a direct, non-relayed link. While this device
+        // relays (crowd/mesh mode, initialHops > 0) a peer id may be bound to a
+        // relayer's MAC, or injected over the keyless crowd UUID — so suppress
+        // attribution entirely there. A consumer (radar's BLE assist) then simply
+        // reads "no band", exactly as if the mesh were off. Discreet mode (no relay,
+        // seed-keyed UUID) is unaffected. See MeshBleWire.shouldAttributeRssi.
+        if (!MeshBleWire.shouldAttributeRssi(initialHops)) return;
         JSONArray ids = peerIdsFor(address);
         if (ids.length() == 0) return;
         long at = System.currentTimeMillis();

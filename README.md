@@ -332,17 +332,21 @@ A product peer became reachable through a learned BLE next hop, or that route wa
 
 #### MeshBleRssiSample
 
-A raw RSSI sample, attributed to an authenticated mesh peer. The plugin only ever
-attributes a sample via an identified link — a BLE MAC address already bound to a
-peer id by a prior frame exchange. Banding or distance estimation is a product
-concern; this plugin reports dBm only. Emitted on Android only for now.
+A raw RSSI sample, attributed to the mesh peer id bound to the MAC it was observed
+on. The binding comes from a prior in-room frame exchange, and attribution is only
+emitted on a DIRECT, non-relaying link (discreet mode): while this device relays
+(crowd/mesh mode) a bound id can belong to a relayer's MAC, or be injected over the
+keyless crowd UUID, so no `rssi` event is emitted at all. It is therefore a
+proximity hint on a trusted-neighbour link, NOT a cryptographic identity proof —
+a consumer must not treat it as authentication. Banding or distance estimation is a
+product concern; this plugin reports dBm only. Emitted on Android only for now.
 
-| Prop          | Type                            | Description                                                                |
-| ------------- | ------------------------------- | -------------------------------------------------------------------------- |
-| **`peer`**    | <code>string</code>             | The authenticated mesh peer id this sample is attributed to.               |
-| **`address`** | <code>string</code>             | The BLE MAC address the sample was observed at.                            |
-| **`rssi`**    | <code>number</code>             | Signal strength in dBm.                                                    |
-| **`source`**  | <code>'gatt' \| 'advert'</code> | Whether the reading came from a live GATT link or a scanned advertisement. |
-| **`at`**      | <code>number</code>             | Epoch ms when the sample was taken.                                        |
+| Prop          | Type                            | Description                                                                                                                                            |
+| ------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`peer`**    | <code>string</code>             | The mesh peer id this sample is attributed to (bound via a prior direct frame exchange; only emitted on a non-relaying link — see the interface note). |
+| **`address`** | <code>string</code>             | The BLE MAC address the sample was observed at.                                                                                                        |
+| **`rssi`**    | <code>number</code>             | Signal strength in dBm.                                                                                                                                |
+| **`source`**  | <code>'gatt' \| 'advert'</code> | Whether the reading came from a live GATT link or a scanned advertisement.                                                                             |
+| **`at`**      | <code>number</code>             | Epoch ms when the sample was taken.                                                                                                                    |
 
 </docgen-api>
