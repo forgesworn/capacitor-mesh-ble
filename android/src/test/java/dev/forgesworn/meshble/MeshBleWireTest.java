@@ -88,4 +88,14 @@ public class MeshBleWireTest {
         assertFalse(MeshBleWire.shouldRelay("carol", "bob", 0, 2));
         assertFalse(MeshBleWire.shouldRelay("carol", "bob", 3, 0));
     }
+
+    @Test
+    public void rssiIsAttributedOnlyOnADirectNonRelayingLink() {
+        // Discreet single-hop mode: the MAC that connected to us is the sender's.
+        assertTrue(MeshBleWire.shouldAttributeRssi(0));
+        // Any relay budget (crowd/mesh mode): a bound id may be a relayer's MAC or
+        // injected over the keyless crowd UUID — never an honest proximity claim.
+        assertFalse(MeshBleWire.shouldAttributeRssi(1));
+        assertFalse(MeshBleWire.shouldAttributeRssi(3));
+    }
 }

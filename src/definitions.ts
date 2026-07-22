@@ -57,13 +57,18 @@ export interface MeshBleStartRssiSamplingOptions {
 }
 
 /**
- * A raw RSSI sample, attributed to an authenticated mesh peer. The plugin only ever
- * attributes a sample via an identified link — a BLE MAC address already bound to a
- * peer id by a prior frame exchange. Banding or distance estimation is a product
- * concern; this plugin reports dBm only. Emitted on Android only for now.
+ * A raw RSSI sample, attributed to the mesh peer id bound to the MAC it was observed
+ * on. The binding comes from a prior in-room frame exchange, and attribution is only
+ * emitted on a DIRECT, non-relaying link (discreet mode): while this device relays
+ * (crowd/mesh mode) a bound id can belong to a relayer's MAC, or be injected over the
+ * keyless crowd UUID, so no `rssi` event is emitted at all. It is therefore a
+ * proximity hint on a trusted-neighbour link, NOT a cryptographic identity proof —
+ * a consumer must not treat it as authentication. Banding or distance estimation is a
+ * product concern; this plugin reports dBm only. Emitted on Android only for now.
  */
 export interface MeshBleRssiSample {
-  /** The authenticated mesh peer id this sample is attributed to. */
+  /** The mesh peer id this sample is attributed to (bound via a prior direct frame
+   *  exchange; only emitted on a non-relaying link — see the interface note). */
   peer: string;
   /** The BLE MAC address the sample was observed at. */
   address: string;
