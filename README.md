@@ -137,11 +137,14 @@ advertisement RSSI, for peers already identified via a prior frame exchange.
 Off by default (battery cost). Idempotent — calling this again while sampling
 just updates the interval. Stops automatically when the transport is stopped.
 
-**Android only.** iOS and web implement NO such method, so a call there is
-REJECTED (not silently ignored) — callers must guard with try/catch if they run
-cross-platform. NB the security-relevant honesty gate (no attribution while
-relaying) is likewise Android-only; if iOS ever grows sampling, the gate MUST be
-ported in the same change or iOS emits dishonest attributions.
+**Android only.** iOS has no such method in its `pluginMethods` list, so a call
+there is REJECTED by the native bridge (not silently ignored) — callers must
+guard with try/catch if they run cross-platform. The web implementation, by
+contrast, DOES implement this method, as an inert no-op: there is no BLE
+hardware to sample, so it resolves rather than rejecting. NB the
+security-relevant honesty gate (no attribution while relaying) is likewise
+Android-only; if iOS ever grows sampling, the gate MUST be ported in the same
+change or iOS emits dishonest attributions.
 
 | Param         | Type                                                                                        |
 | ------------- | ------------------------------------------------------------------------------------------- |
@@ -156,7 +159,9 @@ ported in the same change or iOS emits dishonest attributions.
 stopRssiSampling() => Promise<void>
 ```
 
-Stop RSSI sampling. Idempotent — safe to call when not sampling.
+Stop RSSI sampling. Idempotent — safe to call when not sampling. Shares
+startRssiSampling's platform behaviour: Android runs the real stop, iOS
+rejects (bridge-level, method not implemented), web resolves as a no-op.
 
 --------------------
 

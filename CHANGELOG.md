@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Cancel the underlying GATT connection when dropping a peripheral on iOS, instead of only clearing local bookkeeping — a discovery/write error no longer leaks a scarce CoreBluetooth connection slot.
+- Correct the `startRssiSampling`/`stopRssiSampling` doc comments: the web implementation resolves as an inert no-op (there is no radio to sample), not a rejection. Only iOS rejects, because the native bridge has no such method there; the previous wording incorrectly grouped web in with iOS's rejection behaviour.
 
 ## [0.2.0] - 2026-07-20
 
