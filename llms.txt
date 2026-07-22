@@ -1,0 +1,71 @@
+# capacitor-mesh-ble
+
+> Canonical configurable BLE mesh transport for Capacitor apps: discovery, GATT links, chunking, bounded reassembly, deduplication, multi-hop relay, background lifecycle hooks and a stable cross-platform API — plus an optional attributed-RSSI proximity surface. Product identity, discovery UUID policy, cryptography and payload semantics stay in the consuming app; this plugin only owns the radio.
+
+Capacitor plugin, not a pure JS library: TypeScript definitions + native Android (Java) + native iOS (Swift). Android is fully implemented, including RSSI sampling. iOS implements the core transport but not RSSI sampling (a known gap, not an oversight — see API notes below). Web has no BLE hardware: radio methods (`start`/`broadcast`/`send`) reject, lifecycle/RSSI methods resolve as inert no-ops, `getStatus()` reports a fixed unsupported shape.
+
+Full wire protocol (envelope JSON, chunk header, defaults/bounds, compatibility policy): [docs/contract.md](docs/contract.md).
+
+## Install
+
+```bash
+npm install capacitor-mesh-ble
+npx cap sync
+```
+
+Until an npm release exists, pin an immutable Git commit over SSH instead:
+`npm install 'git+ssh://git@github.com/forgesworn/capacitor-mesh-ble.git#<commit-sha>'`.
+
+## API
+
+- `start(options: MeshBleStartOptions) => Promise<void>` — starts both BLE roles. Required: `room` (domain separator), `selfId` (local peer id, revealed only after a GATT link), `serviceUuid` (discovery/GATT UUID). Optional: `scanUuids` (widen scan to adjacent rotation windows; OR semantics; device still advertises only `serviceUuid`), `hops` (relay hops, 0 disables relay), `foregroundService` + `notificationTitle`/`notificationText` (Android connected-device foreground anchor), `maxEnvelopeBytes`, `maxSeenIds`, `reassemblyTtlMs`, `maxClientLinks`, `connectCooldownMs`, `connectThrottleMs` (all clamped to safety ranges — see the contract doc).
+- `stop() => Promise<void>` — tears down scanners, advertisers, links, queues and background work.
+- `broadcast(options: { data: string }) => Promise<{ queuedPeers: number }>` — queues an opaque frame for all writable peers.
+- `send(options: { peer: string; data: string }) => Promise<{ queuedPeers: number }>` — uses a learned peer mapping when possible, otherwise floods safely.
+- `setKeepaliveFrame(options: { data: string | null }) => Promise<void>` — sets/clears the frame iOS may repeat while JS is suspended in the background. No-op on Android and web.
+- `getStatus() => Promise<MeshBleStatus>` — stable cross-platform status: radio/permission state, `connectedPeers`/`writablePeers`/`knownPeers`, tx/rx/dropped/relayed counters, `peers: MeshBlePeerStatus[]`, `updatedAt`.
+- `startRssiSampling(options?: { intervalMs?: number }) => Promise<void>` — **Android only.** Polls connected GATT links and attributes scanned advert RSSI, for peers already bound via a prior frame exchange. Off by default, idempotent, bounded 500-10000ms (default 2000ms). iOS has no such method — the native bridge rejects the call. Web implements it as an inert no-op (resolves, does nothing) since there's no radio to sample. The security-relevant honesty gate — no attribution while relaying — is Android-only too; attribution is suppressed whenever `hops > 0` because a bound id could be a relayer's MAC or an injection over the keyless crowd UUID, not genuine proximity.
+- `stopRssiSampling() => Promise<void>` — idempotent; shares `startRssiSampling`'s platform behaviour.
+- `addListener('frame', (e: { from: string; data: string }) => void)`
+- `addListener('peer', (e: { peer: string; connected: boolean }) => void)` — a product peer became reachable through a learned BLE next hop, or that route was lost. Fires on both direct and relayed frames.
+- `addListener('status', (status: MeshBleStatus) => void)`
+- `addListener('rssi', (e: { peer: string; address: string; rssi: number; source: 'gatt' | 'advert'; at: number }) => void)` — Android only. A proximity **hint** on a trusted-neighbour link, not a cryptographic identity proof; never treat it as authentication.
+- `removeAllListeners() => Promise<void>`
+
+## Quick Examples
+
+```typescript
+import { MeshBle } from 'capacitor-mesh-ble';
+
+await MeshBle.start({
+  room: 'lobby-2026-07-22',
+  selfId: 'me-abc123',
+  serviceUuid: '29b8d9f3-2c2b-4ed1-a12c-7401e5b7b37f',
+  hops: 3,
+  foregroundService: true,
+  notificationTitle: 'Mesh active',
+});
+
+MeshBle.addListener('frame', ({ from, data }) => console.log('received', from, data));
+MeshBle.addListener('peer', ({ peer, connected }) => console.log('route', peer, connected));
+
+await MeshBle.broadcast({ data: JSON.stringify({ hello: 'mesh' }) });
+await MeshBle.send({ peer: 'bob-def456', data: 'direct message' });
+
+const status = await MeshBle.getStatus(); // { running: true, connectedPeers: 2, ... }
+await MeshBle.stop();
+```
+
+```typescript
+// Attributed RSSI proximity (Android only) — guard with try/catch for iOS.
+try {
+  await MeshBle.startRssiSampling({ intervalMs: 1000 });
+  MeshBle.addListener('rssi', ({ peer, rssi, source }) => console.log(peer, rssi, source));
+} catch {
+  // iOS: native bridge rejects — no RSSI sampling yet.
+}
+```
+
+## Optional
+
+- llms-full.txt: not yet generated for this repo — see [README.md](README.md) for the full docgen-generated API reference (all interfaces and field-level JSDoc), and [docs/contract.md](docs/contract.md) for the wire protocol a from-scratch reimplementation would need (envelope JSON, chunk header layout, frozen fixtures, compatibility policy).
