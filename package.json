@@ -13,7 +13,8 @@
     "docs/contract.md",
     "ios/Sources",
     "Package.swift",
-    "CapacitorMeshBle.podspec"
+    "CapacitorMeshBle.podspec",
+    "llms.txt"
   ],
   "author": "forgesworn",
   "license": "MIT",
