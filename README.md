@@ -6,16 +6,10 @@ The plugin provides Android and iOS radios, chunking, bounded reassembly, relay,
 
 ## Install
 
-Until an npm release exists, pin an immutable Git commit over SSH:
+The plugin is not on npm yet. Install it from Git, pinned to an immutable commit:
 
 ```bash
-npm install 'git+ssh://git@github.com/forgesworn/capacitor-mesh-ble.git#<commit-sha>'
-```
-
-For a published release:
-
-```bash
-npm install capacitor-mesh-ble@0.1.0
+npm install 'git+https://github.com/forgesworn/capacitor-mesh-ble.git#<commit-sha>'
 ```
 
 Sync native files

@@ -8,13 +8,12 @@ Full wire protocol (envelope JSON, chunk header, defaults/bounds, compatibility 
 
 ## Install
 
+Not on npm yet. Install from Git, pinned to an immutable commit:
+
 ```bash
-npm install capacitor-mesh-ble
+npm install 'git+https://github.com/forgesworn/capacitor-mesh-ble.git#<commit-sha>'
 npx cap sync
 ```
-
-Until an npm release exists, pin an immutable Git commit over SSH instead:
-`npm install 'git+ssh://git@github.com/forgesworn/capacitor-mesh-ble.git#<commit-sha>'`.
 
 ## API
 
