@@ -18,6 +18,7 @@
   ],
   "author": "forgesworn",
   "license": "MIT",
+  "homepage": "https://github.com/forgesworn/capacitor-mesh-ble#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/forgesworn/capacitor-mesh-ble.git"
