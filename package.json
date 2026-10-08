@@ -58,7 +58,7 @@
     "prepublishOnly": "npm run verify"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.0.0",
+    "@capacitor/android": "^8.4.3",
     "@capacitor/core": "^8.0.0",
     "@capacitor/docgen": "^0.3.1",
     "@capacitor/ios": "^8.0.0",
