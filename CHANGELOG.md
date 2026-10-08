@@ -9,10 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A Capacitor-free Android `MeshBleRadio` library for native hosts. The Capacitor
+  plugin and native library compile the same radio, wire and foreground-service
+  sources. Native hosts own runtime permission prompts and explicitly close the
+  engine. The existing JavaScript API and BLE envelope/chunk format are unchanged.
+
 - `startRssiSampling`/`stopRssiSampling` and a new `rssi` event (Android only for now): polls RSSI on connected GATT links and attributes scanned advertisement RSSI, but only for a BLE MAC already bound to a peer id via a prior in-room frame exchange — an unbound advert never produces a sample. Attribution is emitted **only on a direct, non-relaying link** (discreet single-hop mode): while the device relays (crowd/mesh mode, `hops > 0`), a bound id can belong to a relayer's MAC rather than the sender's, or be injected over the keyless crowd discovery UUID, so no `rssi` event is emitted at all. The sample is therefore a trusted-neighbour proximity hint, not a cryptographic identity proof — consumers must not treat it as authentication. Off by default (battery cost), bounded 500-10000ms interval, stops automatically when the transport is stopped. A new `MeshBleRssiBus` (Android) lets a native component in the same process (e.g. a foreground service) observe samples without going through the WebView bridge.
 - `scanUuids` start option: a product that rotates `serviceUuid` on a time window can now have the scanner filter for a set of UUIDs (OR semantics, `serviceUuid` always included), so it still discovers members a window or two away across clock skew and rotation boundaries. The device still advertises and hosts its GATT under `serviceUuid` alone. The client now locates a peer's service by the frame characteristic rather than an exact service-UUID match, so a peer serving under an adjacent-window UUID is still bound. `scanUuids` is also reported in `getStatus()`.
 
 ### Fixed
+
+- Android reassembly uses `ByteArrayOutputStream.write(byte[], offset, length)`,
+  preserving the same bytes on API 24–32 where `writeBytes` is unavailable.
+
+- Android status can report missing Bluetooth permissions without calling the
+  permission-protected adapter state API before `BLUETOOTH_CONNECT` is granted.
 
 - Cancel the underlying GATT connection when dropping a peripheral on iOS, instead of only clearing local bookkeeping — a discovery/write error no longer leaks a scarce CoreBluetooth connection slot.
 - Correct the `startRssiSampling`/`stopRssiSampling` doc comments: the web implementation resolves as an inert no-op (there is no radio to sample), not a rejection. Only iOS rejects, because the native bridge has no such method there; the previous wording incorrectly grouped web in with iOS's rejection behaviour.

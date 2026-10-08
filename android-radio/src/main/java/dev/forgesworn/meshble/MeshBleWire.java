@@ -121,7 +121,7 @@ final class MeshBleWire {
             for (int index = 0; index < total; index += 1) {
                 byte[] part = chunks.get(index);
                 if (part == null || output.size() + part.length > maxBytes) return null;
-                output.writeBytes(part);
+                output.write(part, 0, part.length);
             }
             return output.toByteArray();
         }

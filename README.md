@@ -4,6 +4,11 @@ Canonical configurable BLE mesh transport for Capacitor apps
 
 The plugin provides Android and iOS radios, chunking, bounded reassembly, relay, background lifecycle hooks and a stable Capacitor API. Product identity, discovery UUID policy, cryptography and payload semantics stay in the consuming app. See [the transport contract](docs/contract.md).
 
+Native Kotlin/Java apps can use the same Android engine through the
+[Capacitor-free Android library](docs/native-android.md). No WebView is required;
+the host owns permission prompts and lifecycle. The Swift radio remains in the
+Capacitor plugin.
+
 ## Install
 
 The plugin is not on npm yet. Install it from Git, pinned to an immutable commit:

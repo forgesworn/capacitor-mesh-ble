@@ -40,6 +40,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
+    // Capacitor and native hosts compile the same canonical radio sources.
+    // No additional Gradle include is required in existing Capacitor apps.
+    sourceSets.main.java.srcDirs += '../android-radio/src/main/java'
 }
 
 
@@ -54,6 +57,7 @@ dependencies {
     implementation project(':capacitor-android')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     testImplementation "junit:junit:$junitVersion"
+    testImplementation 'org.json:json:20240303'
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
 }

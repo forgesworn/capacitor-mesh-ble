@@ -3,7 +3,7 @@
 Instructions in this file apply to the entire repository.
 
 ## Project Summary
-- Canonical configurable BLE mesh transport for Capacitor apps: a Capacitor plugin, not a pure JS library.
+- Canonical configurable BLE mesh transport for Capacitor apps, plus a shared Android radio library for native hosts; not a pure JS library.
 - Three implementations kept in sync: TypeScript definitions (`src/`), native Android (Java), native iOS (Swift).
 - Android is fully implemented, including attributed-RSSI sampling. iOS implements the core transport but not RSSI sampling yet: a known, documented gap. Web has no BLE hardware: radio methods reject, lifecycle/RSSI methods no-op, `getStatus()` reports a fixed unsupported shape.
 - Product identity, discovery UUID policy, cryptography and payload semantics are deliberately kept OUT of this plugin: it only owns the radio. See `docs/contract.md` for the full boundary.
@@ -25,10 +25,12 @@ Instructions in this file apply to the entire repository.
 - `src/web.ts`: browser/WebView stub (`MeshBleWeb`): `start`/`broadcast`/`send` reject with "BLE mesh transport is unavailable on the web"; `stop`/`setKeepaliveFrame`/`startRssiSampling`/`stopRssiSampling` resolve as no-ops; `getStatus` returns a fixed unsupported/idle shape.
 - `src/index.ts`: `registerPlugin` entry point / barrel re-export.
 - `src/web.test.ts`: unit tests for `web.ts` (the only part of the TS layer testable without a device).
-- `android/src/main/java/dev/forgesworn/meshble/MeshBlePlugin.java`: Android radio: central+peripheral GATT roles, chunking, relay, foreground-service lifecycle, status telemetry.
-- `android/src/main/java/dev/forgesworn/meshble/MeshBleWire.java`: pure wire mechanics (fragment/parse, bounded reassembly, seen-id dedup, connection-arbitration tiebreak, RSSI honesty gate) shared by the Android plugin and the JVM test suite. Package-private by design: it has no Android SDK dependency, which is what makes it independently testable.
-- `android/src/main/java/dev/forgesworn/meshble/MeshBleRssiBus.java`: same-process listener bridge so another native component (e.g. a foreground service) can observe RSSI samples without a Capacitor bridge round trip.
-- `android/src/main/java/dev/forgesworn/meshble/MeshBleForegroundService.java`: optional connected-device foreground service anchor with product-supplied notification copy.
+- `android/src/main/java/dev/forgesworn/meshble/MeshBlePlugin.java`: Capacitor permission/lifecycle facade over the shared engine.
+- `android-radio/src/main/java/dev/forgesworn/meshble/MeshBleRadio.java`: canonical Android central+peripheral GATT, chunking, relay, foreground-service lifecycle and status. Both modules compile this source; do not copy it into consumers.
+- `android-radio/src/main/java/dev/forgesworn/meshble/MeshBleWire.java`: pure wire mechanics (fragment/parse, bounded reassembly, seen-id dedup, connection-arbitration tiebreak, RSSI honesty gate). Package-private and Android-SDK independent for JVM testing.
+- `android-radio/src/main/java/dev/forgesworn/meshble/MeshBleRssiBus.java`: same-process native RSSI listener bridge.
+- `android-radio/src/main/java/dev/forgesworn/meshble/MeshBleForegroundService.java`: optional connected-device foreground service with product-supplied notification copy.
+- `docs/native-android.md`: native API, host permission ownership, packaging and validation limits.
 - `android/src/test/java/dev/forgesworn/meshble/MeshBleWireTest.java`: JVM tests: frozen chunk-header fixture, out-of-order bidirectional reassembly, malformed-input rejection, bounded dedup, deterministic arbitration, RSSI honesty gate.
 - `ios/Sources/MeshBlePlugin/MeshBlePlugin.swift`: iOS radio via CoreBluetooth central+peripheral delegates. Single file; no RSSI sampling implementation yet.
 - `docs/contract.md`: the transport contract: shared-vs-product boundary, JS API semantics, wire envelope JSON, chunk header layout (with a frozen byte fixture), defaults/bounds table, platform lifecycle notes, compatibility policy for protocol changes.
