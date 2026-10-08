@@ -18,6 +18,11 @@
 
 ## JavaScript API
 
+The Android plugin delegates to the shared `MeshBleRadio` engine. Native Android
+hosts can use that same engine through [the native API](native-android.md), with
+host-owned permission prompts and lifecycle. The wire format is identical; this
+does not add a separate native Swift API or change any JavaScript method.
+
 - `start(options)` validates and starts both BLE roles. A product that rotates
   `serviceUuid` on a time window may pass `scanUuids` — the set of UUIDs the scanner
   filters for (OR semantics; `serviceUuid` is always implicitly included) — so it

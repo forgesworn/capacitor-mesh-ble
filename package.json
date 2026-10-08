@@ -9,6 +9,8 @@
   "files": [
     "android/src/main/",
     "android/build.gradle",
+    "android-radio/src/main/",
+    "android-radio/build.gradle",
     "dist/",
     "docs/contract.md",
     "ios/Sources",
