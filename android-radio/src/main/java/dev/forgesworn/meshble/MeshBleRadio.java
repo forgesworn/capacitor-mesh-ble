@@ -53,7 +53,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,7 +61,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.json.JSONArray;
@@ -323,7 +321,12 @@ public final class MeshBleRadio implements AutoCloseable {
         }
 
         int subscribedServerLinks = 0;
-        for (ServerLink server : serverLinks.values()) if (server.subscribed) subscribedServerLinks += 1;
+        for (ServerLink server : serverLinks.values()) {
+            synchronized (server) {
+                if (server.subscribed) subscribedServerLinks += 1;
+                queuedChunks += server.queue.size() + (server.writing ? 1 : 0);
+            }
+        }
 
         status.put("connectedPeers", links.size());
         status.put("writablePeers", writablePeers);
@@ -625,6 +628,13 @@ public final class MeshBleRadio implements AutoCloseable {
             }
         }
         links.clear();
+        for (ServerLink server : serverLinks.values()) {
+            synchronized (server) {
+                server.queue.clear();
+                server.writing = false;
+                server.subscribed = false;
+            }
+        }
         serverLinks.clear();
 
         if (gattServer != null) {
@@ -747,18 +757,20 @@ public final class MeshBleRadio implements AutoCloseable {
             if (excludeAddress != null && excludeAddress.equals(link.address)) continue;
             List<byte[]> chunks = chunksFor(link.mtu, envelope);
             if (chunks.isEmpty()) continue;
-            txChunks += chunks.size();
-            enqueue(link, chunks);
-            queued += 1;
+            if (enqueue(link, chunks)) {
+                txChunks += chunks.size();
+                queued += 1;
+            }
         }
         for (ServerLink server : serverLinks.values()) {
             if (!server.subscribed) continue; // client hasn't enabled notifications yet
             if (excludeAddress != null && excludeAddress.equals(server.address)) continue;
             List<byte[]> chunks = chunksFor(server.mtu, envelope);
             if (chunks.isEmpty()) continue;
-            txChunks += chunks.size();
-            enqueueServer(server, chunks);
-            queued += 1;
+            if (enqueueServer(server, chunks)) {
+                txChunks += chunks.size();
+                queued += 1;
+            }
         }
         return queued;
     }
@@ -768,22 +780,26 @@ public final class MeshBleRadio implements AutoCloseable {
         return MeshBleWire.fragment(mtu, envelope, messageId);
     }
 
-    private void enqueue(Link link, List<byte[]> chunks) {
-        if (chunks.isEmpty()) return;
-        synchronized (link) {
-            link.queue.addAll(chunks);
+    private boolean enqueue(Link link, List<byte[]> chunks) {
+        if (!link.queue.offerFrame(chunks)) {
+            droppedFrames += 1;
+            rememberError("BLE peer transmit queue full");
+            return false;
         }
         mainHandler.post(() -> flush(link));
         emitStatus();
+        return true;
     }
 
-    private void enqueueServer(ServerLink server, List<byte[]> chunks) {
-        if (chunks.isEmpty()) return;
-        synchronized (server) {
-            server.queue.addAll(chunks);
+    private boolean enqueueServer(ServerLink server, List<byte[]> chunks) {
+        if (!server.queue.offerFrame(chunks)) {
+            droppedFrames += 1;
+            rememberError("BLE peer transmit queue full");
+            return false;
         }
         mainHandler.post(() -> flushServer(server));
         emitStatus();
+        return true;
     }
 
     /** Push the next queued chunk to a peer that connected to US, over the NOTIFY
@@ -1578,7 +1594,7 @@ public final class MeshBleRadio implements AutoCloseable {
     private static final class Link {
 
         final String address;
-        final Queue<byte[]> queue = new ArrayDeque<>();
+        final MeshBleQueue queue = new MeshBleQueue();
         BluetoothGatt gatt;
         BluetoothGattCharacteristic characteristic;
         int mtu = 23;
@@ -1610,7 +1626,7 @@ public final class MeshBleRadio implements AutoCloseable {
 
         final String address;
         final BluetoothDevice device;
-        final Queue<byte[]> queue = new ArrayDeque<>();
+        final MeshBleQueue queue = new MeshBleQueue();
         int mtu = 23;
         boolean subscribed = false;
         boolean writing = false;

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Android native and Capacitor radio queues now admit whole frames within 512
+  chunks / 128 KiB per peer. A stalled peer rejects additional frames without
+  evicting existing work; `queuedPeers` counts only accepted queues. Status includes
+  server notification queues, and stopping clears them. iOS queue behaviour is
+  unchanged; the new bound is Android-only.
+
+
 ### Added
 
 - A Capacitor-free Android `MeshBleRadio` library for native hosts. The Capacitor
