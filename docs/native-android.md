@@ -61,3 +61,14 @@ typed defaults, completion races, error codes and native JSON types. Building th
 standalone AAR proves it has no Capacitor dependency. Actual GATT, permissions,
 discovery, foreground/background transitions and delivery still require device
 testing. The extraction does not qualify those physical behaviours.
+
+## Transmit queue bounds
+
+Both Android consumers admit each complete frame atomically into at most 512
+queued chunks / 128 KiB per peer, plus at most one chunk already handed to Android.
+When full, new frames for that peer are dropped without evicting older chunks.
+`queuedPeers` counts accepted queues only; zero is neither delivery nor a durable
+refusal. `droppedFrames` and `lastError` expose overload. Status `queuedChunks`
+includes client writes and server notifications. Stop clears both queues. JVM
+stress tests cover stalled peers, byte/count limits, atomic admission and
+concurrent producers. This bound is not yet applied to the iOS implementation.
