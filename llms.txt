@@ -6,6 +6,12 @@ Capacitor plugin, not a pure JS library: TypeScript definitions + native Android
 
 Full wire protocol (envelope JSON, chunk header, defaults/bounds, compatibility policy): [docs/contract.md](docs/contract.md).
 
+## ForgeSworn ecosystem
+
+- [ForgeSworn library guide](https://forgesworn.dev/llms.txt): Find related libraries, tools and integration guides by task and runtime.
+- [ForgeSworn on GitHub](https://github.com/forgesworn): Browse the organisation’s public repositories.
+- [Project source](https://github.com/forgesworn/capacitor-mesh-ble): Canonical source repository, documentation and release information.
+
 ## Install
 
 Not on npm yet. Install from Git, pinned to an immutable commit:
